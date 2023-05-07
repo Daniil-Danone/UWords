@@ -24,7 +24,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class WordsCategories(models.Model):
     title = models.CharField(max_length=255)
     userID = models.ForeignKey(User, on_delete=models.CASCADE)
-    progress = models.IntegerField(blank=True)
+    progress = models.IntegerField(blank=True, null=True)
     isArchived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -36,8 +36,9 @@ class Word(models.Model):
     wordsID = models.ForeignKey(WordsCategories, on_delete=models.CASCADE)
     value = models.CharField(max_length=255)
     translate = models.CharField(max_length=255)
-    img = models.CharField(max_length=255, blank=True)
-    transcription = models.CharField(max_length=255, blank=True)
+    count = models.IntegerField()
+    img = models.CharField(max_length=255, blank=True, null=True)
+    transcription = models.CharField(max_length=255, blank=True, null=True)
     isLearned = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

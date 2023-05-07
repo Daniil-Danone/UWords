@@ -1,10 +1,20 @@
-from django.shortcuts import render
-from rest_framework import (views, status)
+import datetime
+import os
+import yadisk
+from rest_framework import views
+from .utils import speech_to_text, download_audio, clear_text, wordsFrequency, normalizeWords, wordTranslate
+from dotenv import load_dotenv, find_dotenv
+from rest_framework.response import Response
+from .models import User, WordsCategories, Word
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
 from .serializers import UserSerializer, WordsCategorySerializer, WordSerializer
-from .models import User, WordsCategories, Word
+
+
+load_dotenv(find_dotenv())
+YANDEX_OAUTH = os.environ.get('YANDEX_OAUTH')
+
+yan = yadisk.YaDisk(token=YANDEX_OAUTH)
 
 
 class UserAPIView(views.APIView):
@@ -108,7 +118,7 @@ class WordAPIView(views.APIView):
 
         try:
             return Response(
-                WordSerializer(Word.objects.filter(id=self.kwargs["pk"]), many=True).data)
+                WordSerializer(Word.objects.filter(wordsID_id=self.kwargs["pk"]), many=True).data)
 
         except:
             return Response(f"Категория пуста...")
@@ -147,3 +157,48 @@ class WordAPIView(views.APIView):
             return Response({"ERROR": "Слова с указанным ID не существует"})
 
         return Response(f'Слово {self.kwargs["pk"]} успешно удалено')
+
+
+class DownloadAudioAPIView(views.APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"Метод GET не поддерживается"})
+
+    def post(self, request):
+        if request.data:
+            userID = request.data['userID']
+            audio = request.data['audioLink']
+
+            audiofile = os.path.abspath(__file__).replace(os.path.basename(__file__), '') + f'audio/user{userID}.wav'
+
+            if download_audio(audio, audiofile):
+                textfile = os.path.abspath(__file__).replace(os.path.basename(__file__), '') + f'audio/user{userID}.txt'
+                text = speech_to_text(audiofile, textfile)
+                clearedText = clear_text(text)
+                normWords = normalizeWords(clearedText)
+                dictWordsByFrequency = wordsFrequency(normWords)
+                translatedWords = wordTranslate(dictWordsByFrequency)
+
+                os.remove(audiofile)
+
+                wordsTitle = f'Recomended {userID} {datetime.datetime.now()}'
+
+                words = WordsCategories()
+                words.title = wordsTitle
+                words.userID_id = userID
+                words.progress = 0
+                words.save()
+
+                wordsID = WordsCategories.objects.get(title=wordsTitle).id
+
+                for trWord in translatedWords:
+                    word = Word()
+                    word.wordsID_id = wordsID
+                    word.value = trWord
+                    word.translate = translatedWords[trWord][1]
+                    word.count = translatedWords[trWord][0]
+                    word.save()
+
+                return Response(WordSerializer(Word.objects.filter(wordsID_id=wordsID), many=True).data)
+

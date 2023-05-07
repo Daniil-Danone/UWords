@@ -2,6 +2,6 @@ from django.contrib import admin
 from bigNose.models import User, WordsCategories, Word
 
 # Register your models here.
-admin.register(User)
-admin.register(Word)
-admin.register(WordsCategories)
+admin.site.register(User)
+admin.site.register(Word)
+admin.site.register(WordsCategories)
